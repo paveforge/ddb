@@ -3,3 +3,6 @@
 *.partial
 *.recovery.jsonl
 coverage.out
+.env
+.env.*
+!.env.example

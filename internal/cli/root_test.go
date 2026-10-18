@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"github.com/paveforge/go-ddb-cli/internal/report"
+	"strings"
 	"testing"
 )
 
@@ -35,5 +36,34 @@ func TestFlagErrorExitCode(t *testing.T) {
 	c.SetArgs([]string{"import", "--unknown"})
 	if err := c.Execute(); report.ExitCode(err) != 2 {
 		t.Fatalf("%v", err)
+	}
+}
+
+func TestEnvFileFlagAndErrors(t *testing.T) {
+	for _, command := range []string{"import", "export"} {
+		t.Run(command, func(t *testing.T) {
+			var b bytes.Buffer
+			c := New(&b, &b)
+			c.SetArgs([]string{command, "--help"})
+			if err := c.Execute(); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(b.Bytes(), []byte("--env-file")) {
+				t.Fatal("missing env-file flag")
+			}
+			b.Reset()
+			c = New(&b, &b)
+			args := []string{command, "--table", "users", "--env-file", "missing.env", "--profile", "development"}
+			if command == "import" {
+				args = append(args, "--input", "data.jsonl", "--dry-run")
+			} else {
+				args = append(args, "--output", "out.jsonl")
+			}
+			c.SetArgs(args)
+			err := c.Execute()
+			if report.ExitCode(err) != 2 || !strings.Contains(err.Error(), "cannot be combined") {
+				t.Fatalf("invalid conflict: %v", err)
+			}
+		})
 	}
 }

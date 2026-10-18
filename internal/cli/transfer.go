@@ -22,6 +22,7 @@ type common struct {
 func (c *common) flags(cmd *cobra.Command) {
 	f := cmd.Flags()
 	f.StringVar(&c.aws.Profile, "profile", "", "AWS configuration profile")
+	f.StringVar(&c.aws.EnvFile, "env-file", "", "Load AWS credentials and region from a dotenv file")
 	f.StringVar(&c.aws.Region, "region", "", "AWS region")
 	f.StringVar(&c.aws.Endpoint, "endpoint-url", "", "DynamoDB endpoint override")
 	f.StringVar(&c.format, "format", "dynamodb-jsonl", "dynamodb-jsonl or json")

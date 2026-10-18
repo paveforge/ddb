@@ -94,6 +94,52 @@ See [formats](docs/formats.md), [table definitions](docs/tables.md),
 [operations and recovery](docs/operations.md), and [IAM examples](docs/iam.md).
 Run `ddb import --help` or `ddb export --help` for all options.
 
+## AWS connection from a .env file
+
+Use `--env-file` to load AWS credentials and a region for either command. Copy
+[.env.example](.env.example) into a private file such as `.env.development`:
+
+```dotenv
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-1
+# Include this only for temporary credentials:
+# AWS_SESSION_TOKEN=your-session-token
+```
+
+```sh
+ddb export --env-file .env.production --table users --output users.jsonl.gz
+```
+
+```sh
+ddb import --env-file .env.development --table users-dev \
+  --input users.jsonl.gz --overwrite
+```
+
+The file is loaded only when explicitly selected; `.env` is not discovered
+automatically. `.env` and `.env.*` files are ignored by Git, except `.env.example`.
+
+- Existing process environment values override file values for each variable,
+  including explicitly empty values. `AWS_DEFAULT_REGION` and legacy credential
+  aliases in the process environment are also respected.
+- `--region` overrides the region from either environment source.
+- `--env-file` and `--profile` cannot be combined. Standard profiles and IAM roles
+  remain available when no effective static credentials are supplied.
+- The effective access key and secret key must be supplied together; a session
+  token requires both. Remove an inherited `AWS_SESSION_TOKEN` or set it empty
+  when switching from temporary credentials to a static key pair.
+- Loading a file does not change the process environment. Only
+  `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, and `AWS_REGION`
+  are read from the file; other assignments are ignored.
+
+Files support comments, blank lines, single/double quotes, optional `export`
+prefixes, and Windows line endings. Unquoted inline comments start with `#`
+after whitespace; quoted values preserve `#`. Double quotes support `\n`, `\r`,
+`\t`, `\\`, and `\"` escapes. Values are literal: no variable expansion, shell
+execution, or multiline values. Duplicate variables and malformed lines are
+errors; diagnostics include line numbers without exposing values. Files are
+limited to 1 MiB and lines to 64 KiB.
+
 ## Custom endpoints and DynamoDB Local
 
 Both import and export support `--endpoint-url` to override the DynamoDB service
