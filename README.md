@@ -12,7 +12,11 @@ Linux/macOS:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/paveforge/go-ddb-cli/main/scripts/install.sh | sh
-# or
+```
+
+Or with wget:
+
+```sh
 wget -qO- https://raw.githubusercontent.com/paveforge/go-ddb-cli/main/scripts/install.sh | sh
 ```
 
@@ -89,6 +93,30 @@ including removal of attributes absent from the input. It is not a merge.
 See [formats](docs/formats.md), [table definitions](docs/tables.md),
 [operations and recovery](docs/operations.md), and [IAM examples](docs/iam.md).
 Run `ddb import --help` or `ddb export --help` for all options.
+
+## Custom endpoints and DynamoDB Local
+
+Both import and export support `--endpoint-url` to override the DynamoDB service
+URL. For a DynamoDB Local instance at `http://localhost:8000`:
+
+```sh
+ddb export --table users --output users.jsonl \
+  --endpoint-url http://localhost:8000 --region us-east-1
+```
+
+```sh
+ddb import --table users-dev --input users.jsonl --overwrite \
+  --endpoint-url http://localhost:8000 --region us-east-1
+```
+
+The endpoint must be an absolute HTTP or HTTPS URL. A region and credentials are
+still required; DynamoDB Local accepts dummy credentials. For local development,
+set these in your shell before running the commands above:
+
+```sh
+export AWS_ACCESS_KEY_ID=local
+export AWS_SECRET_ACCESS_KEY=local
+```
 
 ## Large transfers
 
