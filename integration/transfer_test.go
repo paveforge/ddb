@@ -25,6 +25,20 @@ func TestDynamoDBLocal(t *testing.T) {
 	client := dynamodb.New(dynamodb.Options{Region: "us-east-1", BaseEndpoint: aws.String(endpoint), Credentials: aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
 		return aws.Credentials{AccessKeyID: "local", SecretAccessKey: "local"}, nil
 	}), RetryMaxAttempts: 1})
+	readyCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	for {
+		_, e := client.ListTables(readyCtx, &dynamodb.ListTablesInput{})
+		if e == nil {
+			break
+		}
+		select {
+		case <-readyCtx.Done():
+			cancel()
+			t.Fatalf("DynamoDB Local not ready: %v", e)
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	cancel()
 	name := fmt.Sprintf("ddb-test-%d", time.Now().UnixNano())
 	dir := t.TempDir()
 	definition := filepath.Join(dir, "table.json")

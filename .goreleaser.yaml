@@ -1,0 +1,33 @@
+version: 2
+project_name: ddb
+builds:
+  - id: ddb
+    main: ./cmd/ddb
+    binary: ddb
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - >-
+        -s -w
+        -X github.com/paveforge/go-ddb-cli/internal/cli.Version={{.Version}}
+        -X github.com/paveforge/go-ddb-cli/internal/cli.Commit={{.Commit}}
+        -X github.com/paveforge/go-ddb-cli/internal/cli.Date={{.Date}}
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files: [LICENSE, README.md, docs/**/*]
+checksum:
+  name_template: checksums.txt
+changelog:
+  sort: asc
+release:
+  github:
+    owner: paveforge
+    name: go-ddb-cli

@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -32,7 +31,7 @@ func Number(s string) error {
 	if len(parts) == 2 {
 		var err error
 		exponent, err = strconv.Atoi(parts[1])
-		if err != nil {
+		if err != nil || exponent < -1000 || exponent > 1000 {
 			return fmt.Errorf("invalid number exponent")
 		}
 	}
@@ -53,7 +52,7 @@ func Number(s string) error {
 
 // strictValue rejects duplicate JSON object fields, which would silently lose data.
 func strictValue(d *json.Decoder, depth int) (any, error) {
-	if depth > 40 {
+	if depth > 100 {
 		return nil, fmt.Errorf("JSON nesting exceeds supported depth")
 	}
 	t, e := d.Token()
@@ -177,8 +176,8 @@ func tagged(v any, depth int) (types.AttributeValue, error) {
 						if e := Number(s); e != nil {
 							return nil, e
 						}
-						f, _, _ := big.ParseFloat(s, 10, 512, big.ToNearestEven)
-						identity = f.Text('g', -1)
+						f, _ := new(big.Rat).SetString(s)
+						identity = f.RatString()
 					}
 					if tag == "BS" {
 						b, e := base64.StdEncoding.DecodeString(s)
@@ -576,5 +575,3 @@ func valueSize(a types.AttributeValue) int {
 	}
 	return 400*1024 + 1
 }
-
-var ErrStop = errors.New("stop")

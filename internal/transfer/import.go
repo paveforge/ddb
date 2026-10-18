@@ -65,7 +65,7 @@ func Import(ctx context.Context, api API, o ImportOptions, s *report.Summary) (e
 	if (o.Table == "") == (o.TableFile == "") {
 		return bad(fmt.Errorf("exactly one of --table or --table-file is required"))
 	}
-	if o.Concurrency < 1 || o.Concurrency > 64 || o.WriteRate < 0 || o.WaitTimeout <= 0 {
+	if o.Concurrency < 1 || o.Concurrency > 64 || !validRate(o.WriteRate) || o.WaitTimeout <= 0 {
 		return bad(fmt.Errorf("concurrency must be 1..64, write rate nonnegative, and wait timeout positive"))
 	}
 	if e := o.Retry.Validate(); e != nil {
@@ -94,8 +94,10 @@ func Import(ctx context.Context, api API, o ImportOptions, s *report.Summary) (e
 	if err != nil {
 		return report.Fail(3, s.Phase, err)
 	}
+	s.WouldTruncate = o.Truncate
 	original := d
 	missing := d == nil
+	s.WouldCreate = missing
 	if missing {
 		if def == nil {
 			return bad(fmt.Errorf("destination table is missing; use --table-file to create it"))
@@ -223,13 +225,16 @@ func Import(ctx context.Context, api API, o ImportOptions, s *report.Summary) (e
 	}()
 	if missing {
 		s.Phase = "creation"
+		s.CreationAttempted = true
+		s.CreationUncertain = true
 		_, e := retryCall(ctx, o.Retry, &s.Retries, func(c context.Context) (*dynamodb.CreateTableOutput, error) { return api.CreateTable(c, def) })
 		var exists *types.ResourceInUseException
 		if e != nil && !errors.As(e, &exists) {
 			return report.Fail(3, s.Phase, e)
 		}
 		s.Created = e == nil
-		d, err = table.Wait(ctx, api, o.Table, o.WaitTimeout)
+		s.CreationUncertain = e != nil
+		d, err = waitReady(ctx, api, o, s)
 		if err != nil {
 			return report.Fail(3, s.Phase, err)
 		}
@@ -238,7 +243,7 @@ func Import(ctx context.Context, api API, o ImportOptions, s *report.Summary) (e
 		}
 	} else {
 		// Recheck immediately before mutation; input validation may have taken hours.
-		d, err = table.Describe(ctx, api, o.Table)
+		d, err = retryCall(ctx, o.Retry, &s.Retries, func(c context.Context) (*types.TableDescription, error) { return table.Describe(c, api, o.Table) })
 		if err != nil {
 			return report.Fail(3, s.Phase, err)
 		}
@@ -395,34 +400,64 @@ func equalRequest(a, b types.WriteRequest) bool {
 	return string(x) == string(y)
 }
 func writeWave(ctx context.Context, api API, o ImportOptions, wave []record, p *Pacer, journal *os.File, s *report.Summary) error {
-	count := (len(wave) + 24) / 25
-	results := make([]batchResult, count)
+	batches := [][]record{}
+	start, wireBytes := 0, 0
+	for i, rec := range wave {
+		encoded, e := format.Marshal(rec.item, true)
+		if e != nil {
+			return e
+		}
+		size := len(encoded) + 32
+		if i > start && (i-start == 25 || wireBytes+size > 16*1024*1024-4096) {
+			batches = append(batches, wave[start:i])
+			start = i
+			wireBytes = 0
+		}
+		wireBytes += size
+	}
+	if start < len(wave) {
+		batches = append(batches, wave[start:])
+	}
+	results := make([]batchResult, len(batches))
 	var wg sync.WaitGroup
+	var cause error
+	var causeOnce sync.Once
 	workCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	for batch := 0; batch < count; batch++ {
+	slots := make(chan struct{}, o.Concurrency)
+schedule:
+	for batch, records := range batches {
+		select {
+		case <-workCtx.Done():
+			break schedule
+		case slots <- struct{}{}:
+		}
+		if workCtx.Err() != nil {
+			<-slots
+			break
+		}
 		wg.Add(1)
-		go func(b int) {
+		go func(b int, records []record) {
 			defer wg.Done()
-			start := b * 25
-			end := min(start+25, len(wave))
-			req := make([]types.WriteRequest, end-start)
-			for i, v := range wave[start:end] {
+			defer func() { <-slots }()
+			req := make([]types.WriteRequest, len(records))
+			for i, v := range records {
 				req[i] = types.WriteRequest{PutRequest: &types.PutRequest{Item: v.item}}
 			}
 			results[b] = batchWrite(workCtx, api, o.Table, req, o.Retry, p)
 			if results[b].err != nil {
-				cancel()
+				causeOnce.Do(func() { cause = results[b].err; cancel() })
 			}
-		}(batch)
+		}(batch, records)
 	}
+
 	wg.Wait()
 	var err error
 	for b, res := range results {
 		s.Retries += res.retries
 		s.Capacity += res.capacity
 		for i, ok := range res.confirmed {
-			rec := wave[b*25+i]
+			rec := batches[b][i]
 			if ok {
 				s.Confirmed++
 				s.NotAttempted--
@@ -434,7 +469,11 @@ func writeWave(ctx context.Context, api API, o ImportOptions, wave []record, p *
 				s.NotAttempted--
 			}
 		}
-		err = errors.Join(err, res.err)
+	}
+	// Sibling cancellation must not replace the triggering failure.
+	err = errors.Join(err, cause)
+	if err == nil && ctx.Err() != nil {
+		return ctx.Err()
 	}
 	return err
 }
@@ -473,6 +512,8 @@ func truncate(ctx context.Context, api API, o ImportOptions, d *types.TableDescr
 			for _, ok := range r.confirmed {
 				if ok {
 					s.Deleted++
+				} else if r.attempted {
+					s.DeleteUnresolved++
 				}
 			}
 			if r.err != nil {
@@ -485,6 +526,23 @@ func truncate(ctx context.Context, api API, o ImportOptions, d *types.TableDescr
 		cursor = out.LastEvaluatedKey
 		if len(cursor) == 0 {
 			return nil
+		}
+	}
+}
+
+func waitReady(ctx context.Context, api API, o ImportOptions, s *report.Summary) (*types.TableDescription, error) {
+	ctx, cancel := context.WithTimeout(ctx, o.WaitTimeout)
+	defer cancel()
+	for {
+		d, e := retryCall(ctx, o.Retry, &s.Retries, func(c context.Context) (*types.TableDescription, error) { return table.Describe(c, api, o.Table) })
+		if e != nil {
+			return nil, e
+		}
+		if d != nil && table.Ready(d) {
+			return d, nil
+		}
+		if e = pause(ctx, time.Second); e != nil {
+			return nil, e
 		}
 	}
 }

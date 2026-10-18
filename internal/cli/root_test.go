@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"github.com/paveforge/go-ddb-cli/internal/report"
 	"testing"
 )
 
@@ -25,5 +26,14 @@ func TestExclusiveImportFlags(t *testing.T) {
 		if err := c.Execute(); err == nil {
 			t.Fatalf("accepted %v", args)
 		}
+	}
+}
+
+func TestFlagErrorExitCode(t *testing.T) {
+	var b bytes.Buffer
+	c := New(&b, &b)
+	c.SetArgs([]string{"import", "--unknown"})
+	if err := c.Execute(); report.ExitCode(err) != 2 {
+		t.Fatalf("%v", err)
 	}
 }

@@ -1,6 +1,6 @@
 # DynamoDB CLI implementation plan
 
-Status: implementation approved; work on `main`, committing each successful milestone.
+Status: implementation approved and milestones implemented on `main`; see progress below.
 
 ## 1. Purpose
 
@@ -453,3 +453,28 @@ Changing repository visibility, publishing releases, and distributing installers
 4. Managed S3 workflows for very large production transfers and point-in-time exports.
 
 Checkpoint designs must bind progress to input/output identity and target settings, commit only durable progress, and explicitly retain at-least-once semantics where outcomes are uncertain.
+
+## 21. Implementation progress
+
+- Milestone 1 committed: `19e786a` — CLI foundation, AWS configuration, reports, initial CI.
+- Milestone 2 committed: `1a5899e` — streaming export, codecs, gzip, partial-file handling.
+- Milestone 3 committed: `bf2eb93` — import preflight, table lifecycle, truncation, retries, recovery.
+- Milestone 4 complete: distribution, documentation, pinned workflows, installer fixtures, and final hardening; committed with this progress update.
+
+Verification performed locally:
+
+- Go unit and race tests, vet, formatting, and shell installer fixtures.
+- DynamoDB Local integration covering creation, all value types, paginated gzip export, truncation, and reimport.
+- GoReleaser configuration validation and snapshot archives for all six targets, archive layout/checksums, and native release-binary CLI smoke tests.
+- Large import resource test: source exceeds 117 MiB; sampled heap growth approximately 3 MiB on the development machine.
+
+Native Windows/PowerShell and Linux/macOS checks are configured in GitHub Actions;
+Windows execution has not been performed locally. No release was published, no
+changes were pushed, and repository visibility was not changed.
+
+Implementation details clarified during development:
+
+- All imports stage canonical validated input, trading temporary disk space for a stable source and bounded-memory recovery.
+- Initial stored-number size checks use a documented conservative bound, which can reject some otherwise valid near-limit items.
+- Duplicate-key scheduling uses bounded waves; wire-size partitioning can split a wave into additional batches while retaining the configured worker limit.
+- Export publication without force uses a no-clobber hard link; unsupported filesystems fail safely and retain the partial file.

@@ -52,7 +52,6 @@ func (c *common) preflight(path string) error {
 }
 func (c *common) finish(cmd *cobra.Command, s *report.Summary, start time.Time, err *error) {
 	s.Finish(start, *err)
-	s.Print(cmd.ErrOrStderr())
 	var w io.Writer
 	if c.report == "-" {
 		w = cmd.OutOrStdout()
@@ -62,13 +61,17 @@ func (c *common) finish(cmd *cobra.Command, s *report.Summary, start time.Time, 
 	if w != nil {
 		if e := s.Write(w); e != nil {
 			*err = fmt.Errorf("%w; write report: %v", nonNil(*err), e)
+			s.Phase = "report"
 		}
 		if c.reportFile != nil {
 			if e := c.reportFile.Close(); e != nil {
 				*err = fmt.Errorf("%w; close report: %v", nonNil(*err), e)
+				s.Phase = "report"
 			}
 		}
 	}
+	s.Finish(start, *err)
+	s.Print(cmd.ErrOrStderr())
 }
 func nonNil(err error) error {
 	if err != nil {

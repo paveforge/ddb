@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand/v2"
 	"net"
 	"os"
@@ -85,6 +86,7 @@ type Pacer struct {
 	interval time.Duration
 }
 
+func validRate(rate float64) bool { return rate >= 0 && !math.IsNaN(rate) && !math.IsInf(rate, 0) }
 func NewPacer(rate float64) *Pacer {
 	p := &Pacer{}
 	if rate > 0 {

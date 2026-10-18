@@ -27,7 +27,7 @@ type ExportOptions struct {
 
 func Export(ctx context.Context, api API, o ExportOptions, s *report.Summary) (err error) {
 	s.Phase = "preflight"
-	if o.PageSize < 1 || o.ReadRate < 0 {
+	if o.PageSize < 1 || !validRate(o.ReadRate) {
 		return report.Fail(2, s.Phase, fmt.Errorf("page size must be positive; read rate must be nonnegative"))
 	}
 	if err = o.Retry.Validate(); err != nil {

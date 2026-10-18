@@ -7,10 +7,11 @@ import (
 	"github.com/paveforge/go-ddb-cli/internal/report"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	go func() { <-ctx.Done(); cancel() }()
 	if err := cli.New(os.Stdout, os.Stderr).ExecuteContext(ctx); err != nil {

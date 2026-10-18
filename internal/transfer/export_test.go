@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/paveforge/go-ddb-cli/internal/format"
@@ -89,5 +88,4 @@ func TestExportFailureAndNoClobber(t *testing.T) {
 	if strings.TrimSpace(string(b)) != "keep" {
 		t.Fatal(string(b))
 	}
-	_ = aws.String("test")
 }

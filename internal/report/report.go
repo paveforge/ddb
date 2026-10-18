@@ -43,32 +43,37 @@ func ExitCode(err error) int {
 }
 
 type Summary struct {
-	SchemaVersion    int     `json:"schema_version"`
-	Command          string  `json:"command"`
-	Table            string  `json:"table"`
-	Region           string  `json:"region,omitempty"`
-	Endpoint         string  `json:"endpoint,omitempty"`
-	Phase            string  `json:"phase"`
-	Success          bool    `json:"success"`
-	DryRun           bool    `json:"dry_run"`
-	Validated        int64   `json:"validated"`
-	Confirmed        int64   `json:"confirmed"`
-	Unresolved       int64   `json:"unresolved"`
-	NotAttempted     int64   `json:"not_attempted"`
-	Deleted          int64   `json:"deleted"`
-	Scanned          int64   `json:"scanned"`
-	Bytes            int64   `json:"bytes"`
-	Retries          int64   `json:"retries"`
-	Capacity         float64 `json:"consumed_capacity"`
-	Created          bool    `json:"table_created"`
-	TruncateStarted  bool    `json:"truncate_started"`
-	TruncateComplete bool    `json:"truncate_complete"`
-	Recovery         string  `json:"recovery_file,omitempty"`
-	RecoveryComplete bool    `json:"recovery_complete"`
-	Partial          string  `json:"partial_file,omitempty"`
-	InputSHA256      string  `json:"input_sha256,omitempty"`
-	Duration         string  `json:"duration"`
-	Error            string  `json:"error,omitempty"`
+	SchemaVersion     int     `json:"schema_version"`
+	Command           string  `json:"command"`
+	Table             string  `json:"table"`
+	Region            string  `json:"region,omitempty"`
+	Endpoint          string  `json:"endpoint,omitempty"`
+	Phase             string  `json:"phase"`
+	Success           bool    `json:"success"`
+	DryRun            bool    `json:"dry_run"`
+	Validated         int64   `json:"validated"`
+	Confirmed         int64   `json:"confirmed"`
+	Unresolved        int64   `json:"unresolved"`
+	NotAttempted      int64   `json:"not_attempted"`
+	Deleted           int64   `json:"deleted"`
+	Scanned           int64   `json:"scanned"`
+	Bytes             int64   `json:"bytes"`
+	Retries           int64   `json:"retries"`
+	Capacity          float64 `json:"consumed_capacity"`
+	WouldCreate       bool    `json:"would_create_table"`
+	WouldTruncate     bool    `json:"would_truncate"`
+	CreationAttempted bool    `json:"creation_attempted"`
+	CreationUncertain bool    `json:"creation_uncertain"`
+	DeleteUnresolved  int64   `json:"delete_unresolved"`
+	Created           bool    `json:"table_created"`
+	TruncateStarted   bool    `json:"truncate_started"`
+	TruncateComplete  bool    `json:"truncate_complete"`
+	Recovery          string  `json:"recovery_file,omitempty"`
+	RecoveryComplete  bool    `json:"recovery_complete"`
+	Partial           string  `json:"partial_file,omitempty"`
+	InputSHA256       string  `json:"input_sha256,omitempty"`
+	Duration          string  `json:"duration"`
+	Error             string  `json:"error,omitempty"`
 }
 
 func (s *Summary) Finish(start time.Time, err error) {

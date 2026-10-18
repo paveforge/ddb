@@ -44,3 +44,33 @@ func TestPlainAndTrailing(t *testing.T) {
 		t.Fatal("silently exported set")
 	}
 }
+
+func TestNumberBoundaries(t *testing.T) {
+	for _, s := range []string{"1e-130", "9.9999999999999999999999999999999999999e125", "-0", "0.00000000000000000000000000000000000001", "1.0000000000000000000000000000000000000000"} {
+		if e := Number(s); e != nil {
+			t.Fatalf("%s: %v", s, e)
+		}
+	}
+	for _, s := range []string{"1e-131", "1e126", "123456789012345678901234567890123456789", "+1", "01"} {
+		if e := Number(s); e == nil {
+			t.Fatalf("accepted %s", s)
+		}
+	}
+}
+func TestFullDocumentDepth(t *testing.T) {
+	s := `{"S":"x"}`
+	for i := 0; i < 32; i++ {
+		s = `{"L":[` + s + `]}`
+	}
+	input := `{"Item":{"x":` + s + `}}`
+	if e := Decode(strings.NewReader(input), "dynamodb-jsonl", func(Item) error { return nil }); e != nil {
+		t.Fatal(e)
+	}
+}
+func TestMalformedArrays(t *testing.T) {
+	for _, s := range []string{`[{"x":1},]`, `[{},`, `[{}]garbage`, `[{"x":[]}] []`, `[{"x":"bad}]`, `[{"x":1,"x":2}]`} {
+		if e := Decode(strings.NewReader(s), "json", func(Item) error { return nil }); e == nil {
+			t.Fatalf("accepted %s", s)
+		}
+	}
+}

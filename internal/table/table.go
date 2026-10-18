@@ -9,7 +9,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -28,6 +27,13 @@ func Load(path string) (*dynamodb.CreateTableInput, error) {
 		return nil, e
 	}
 	defer f.Close()
+	st, e := f.Stat()
+	if e != nil {
+		return nil, e
+	}
+	if !st.Mode().IsRegular() || st.Size() > 1024*1024 {
+		return nil, fmt.Errorf("table definition must be a regular file of at most 1 MiB")
+	}
 	d := json.NewDecoder(io.LimitReader(f, 1024*1024+1))
 	d.DisallowUnknownFields()
 	var v dynamodb.CreateTableInput
@@ -260,26 +266,6 @@ func Ready(d *types.TableDescription) bool {
 		}
 	}
 	return true
-}
-func Wait(ctx context.Context, api API, name string, timeout time.Duration) (*types.TableDescription, error) {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	for {
-		d, e := Describe(ctx, api, name)
-		if e != nil {
-			return nil, e
-		}
-		if d != nil && Ready(d) {
-			return d, nil
-		}
-		timer := time.NewTimer(time.Second)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return nil, ctx.Err()
-		case <-timer.C:
-		}
-	}
 }
 func ValidateItem(item format.Item, d *types.TableDescription) error {
 	if format.Size(item) > 400*1024 {
