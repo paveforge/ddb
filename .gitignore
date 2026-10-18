@@ -1,0 +1,5 @@
+/bin/
+/dist/
+*.partial
+*.recovery.jsonl
+coverage.out
