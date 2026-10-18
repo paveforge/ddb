@@ -1,0 +1,2 @@
+# Keep source and scripts consistent with gofmt on every checkout, including Windows.
+* text=auto eol=lf

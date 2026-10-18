@@ -17,8 +17,14 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build ./cmd/ddb
-      - shell: bash
-        run: test -z "$(gofmt -l cmd internal integration scripts)"
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          unformatted=$(gofmt -l cmd internal integration scripts)
+          if [ -n "$unformatted" ]; then
+            printf 'Run gofmt on these files:\n%s\n' "$unformatted"
+            exit 1
+          fi
       - if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/test-install.ps1
