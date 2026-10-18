@@ -135,3 +135,47 @@ func exportCommand() *cobra.Command {
 	f.Float64Var(&o.ReadRate, "read-rate", 0, "Maximum scan requests/second (0 unlimited)")
 	return cmd
 }
+
+func importCommand() *cobra.Command {
+	var c common
+	var o transfer.ImportOptions
+	cmd := &cobra.Command{Use: "import", Short: "Validate and import a local file", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) (err error) {
+		start := time.Now()
+		s := report.Summary{Command: "import", Table: o.Table, Endpoint: c.aws.Endpoint, Phase: "preflight"}
+		defer c.finish(cmd, &s, start, &err)
+		if (o.Table == "") == (o.TableFile == "") {
+			return report.Fail(2, "preflight", fmt.Errorf("exactly one of --table or --table-file is required"))
+		}
+		o.Input, err = pathAlias(o.Input, c.file)
+		if err != nil {
+			return err
+		}
+		if err = c.preflight(o.Input); err != nil {
+			return err
+		}
+		api, region, e := awsconfig.Load(cmd.Context(), c.aws)
+		if e != nil {
+			return report.Fail(2, "preflight", e)
+		}
+		s.Region = region
+		o.Format = c.format
+		o.Compression = c.compression
+		o.Retry = c.retry
+		o.Progress = progress(cmd)
+		return transfer.Import(cmd.Context(), api, o, &s)
+	}}
+	c.flags(cmd)
+	f := cmd.Flags()
+	f.StringVar(&o.Table, "table", "", "Existing destination table")
+	f.StringVar(&o.TableFile, "table-file", "", "CreateTable JSON definition (exclusive with --table)")
+	f.StringVar(&o.Input, "input", "", "Input file path")
+	f.BoolVar(&o.Overwrite, "overwrite", false, "Acknowledge replacement of matching items")
+	f.BoolVar(&o.Truncate, "truncate", false, "Delete existing items before import")
+	f.StringVar(&o.ConfirmTable, "confirm-table", "", "Confirm destination table name for truncation")
+	f.BoolVar(&o.DryRun, "dry-run", false, "Validate and report without AWS mutations")
+	f.IntVar(&o.Concurrency, "concurrency", 4, "Concurrent batch writers (1..64)")
+	f.Float64Var(&o.WriteRate, "write-rate", 0, "Maximum batch requests/second across writers (0 unlimited)")
+	f.DurationVar(&o.WaitTimeout, "wait-timeout", 10*time.Minute, "Maximum wait for new table/index readiness")
+	f.StringVar(&o.Recovery, "recovery", "", "Recovery output (default INPUT.recovery.jsonl)")
+	return cmd
+}

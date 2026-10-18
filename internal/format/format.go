@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -26,22 +27,27 @@ func Number(s string) error {
 	if len(s) > 256 || !numberPattern.MatchString(s) {
 		return fmt.Errorf("invalid DynamoDB number")
 	}
-	f, _, err := big.ParseFloat(s, 10, 512, big.ToNearestEven)
-	if err != nil {
-		return fmt.Errorf("invalid number")
+	parts := strings.Split(strings.ToLower(strings.TrimPrefix(s, "-")), "e")
+	exponent := 0
+	if len(parts) == 2 {
+		var err error
+		exponent, err = strconv.Atoi(parts[1])
+		if err != nil {
+			return fmt.Errorf("invalid number exponent")
+		}
 	}
-	if f.Sign() == 0 {
+	decimal := strings.Split(parts[0], ".")
+	digits := strings.Join(decimal, "")
+	nonzero := strings.TrimLeft(digits, "0")
+	if nonzero == "" {
 		return nil
 	}
-	text := f.Text('e', -1)
-	parts := strings.Split(text, "e")
-	var exp int
-	fmt.Sscanf(parts[1], "%d", &exp)
-	mant := strings.TrimLeft(strings.ReplaceAll(strings.TrimPrefix(strings.Split(strings.ToLower(s), "e")[0], "-"), ".", ""), "0")
-	mant = strings.TrimRight(mant, "0")
-	if len(mant) > 38 || exp < -130 || exp > 125 {
+	magnitude := len(decimal[0]) - (len(digits) - len(nonzero)) - 1 + exponent
+	significant := strings.TrimRight(nonzero, "0")
+	if len(significant) > 38 || magnitude < -130 || magnitude > 125 {
 		return fmt.Errorf("number exceeds DynamoDB precision or range")
 	}
+
 	return nil
 }
 
@@ -288,27 +294,76 @@ func Decode(r io.Reader, kind string, emit func(Item) error) error {
 		}
 		return s.Err()
 	case "json":
-		d := json.NewDecoder(r)
-		d.UseNumber()
-		t, e := d.Token()
-		if e != nil {
-			return e
-		}
-		if t != json.Delim('[') {
-			return fmt.Errorf("expected JSON array")
-		}
-		var n int64
-		for d.More() {
-			var raw json.RawMessage
-			if e = d.Decode(&raw); e != nil {
-				return fmt.Errorf("record %d: invalid JSON", n+1)
+		return decodeArray(r, emit)
+
+	}
+	return fmt.Errorf("unsupported format %q", kind)
+}
+
+// Read one bounded object at a time so malformed giant records cannot exhaust memory.
+func decodeArray(r io.Reader, emit func(Item) error) error {
+	b := bufio.NewReaderSize(r, 64*1024)
+	next := func() (byte, error) {
+		for {
+			c, e := b.ReadByte()
+			if e != nil {
+				return 0, e
 			}
-			if len(raw) > MaxRecord {
-				return fmt.Errorf("record too large")
+			if c != ' ' && c != '\n' && c != '\r' && c != '\t' {
+				return c, nil
+			}
+		}
+	}
+	c, e := next()
+	if e != nil || c != '[' {
+		return fmt.Errorf("expected JSON array")
+	}
+	c, e = next()
+	if e != nil {
+		return e
+	}
+	if c != ']' {
+		for {
+			if c != '{' {
+				return fmt.Errorf("record must be an object")
+			}
+			raw := []byte{'{'}
+			depth := 1
+			quoted, escaped := false, false
+			for depth > 0 {
+				c, e = b.ReadByte()
+				if e != nil {
+					return e
+				}
+				raw = append(raw, c)
+				if len(raw) > MaxRecord {
+					return fmt.Errorf("record exceeds maximum encoded size")
+				}
+				if quoted {
+					if escaped {
+						escaped = false
+					} else if c == '\\' {
+						escaped = true
+					} else if c == '"' {
+						quoted = false
+					}
+				} else {
+					switch c {
+					case '"':
+						quoted = true
+					case '{', '[':
+						depth++
+						if depth > 40 {
+							return fmt.Errorf("JSON nesting too deep")
+						}
+					case '}', ']':
+						depth--
+					}
+				}
 			}
 			v, e := parse(raw)
 			if e != nil {
-				return fmt.Errorf("record %d: invalid JSON", n+1)
+				return fmt.Errorf("invalid JSON record")
 			}
 			m, ok := v.(map[string]any)
 			if !ok {
@@ -321,17 +376,26 @@ func Decode(r io.Reader, kind string, emit func(Item) error) error {
 			if e = emit(item); e != nil {
 				return e
 			}
-			n++
+			c, e = next()
+			if e != nil {
+				return e
+			}
+			if c == ']' {
+				break
+			}
+			if c != ',' {
+				return fmt.Errorf("expected array comma")
+			}
+			c, e = next()
+			if e != nil {
+				return e
+			}
 		}
-		if _, e = d.Token(); e != nil {
-			return e
-		}
-		if _, e = d.Token(); e != io.EOF {
-			return fmt.Errorf("trailing JSON content")
-		}
-		return nil
 	}
-	return fmt.Errorf("unsupported format %q", kind)
+	if _, e = next(); e != io.EOF {
+		return fmt.Errorf("trailing JSON content")
+	}
+	return nil
 }
 
 func wire(a types.AttributeValue, tag bool) (any, error) {

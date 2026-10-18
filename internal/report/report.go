@@ -22,6 +22,10 @@ func Fail(code int, phase string, err error) error {
 	if err == nil {
 		return nil
 	}
+	var existing *Error
+	if errors.As(err, &existing) {
+		return err
+	}
 	return &Error{code, phase, err}
 }
 func ExitCode(err error) int {

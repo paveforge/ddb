@@ -40,13 +40,16 @@ func transient(err error) bool {
 	return errors.As(err, &n) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 func pause(ctx context.Context, d time.Duration) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	t := time.NewTimer(d)
 	defer t.Stop()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-t.C:
-		return nil
+		return ctx.Err()
 	}
 }
 func backoff(ctx context.Context, attempt int) error {
