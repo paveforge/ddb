@@ -26,6 +26,7 @@ type ImportOptions struct {
 	Table, TableFile, Input, Format, Compression, Recovery string
 	Overwrite, Truncate, DryRun                            bool
 	ConfirmTable                                           string
+	TableNameOverride                                      string
 	Concurrency                                            int
 	WriteRate                                              float64
 	Retry                                                  Retry
@@ -76,6 +77,12 @@ func Import(ctx context.Context, api API, o ImportOptions, s *report.Summary) (e
 		def, err = table.Load(o.TableFile)
 		if err != nil {
 			return bad(err)
+		}
+		if o.TableNameOverride != "" {
+			def.TableName = aws.String(o.TableNameOverride)
+			if err = table.Validate(def); err != nil {
+				return bad(err)
+			}
 		}
 		o.Table = aws.ToString(def.TableName)
 	}

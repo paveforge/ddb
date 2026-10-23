@@ -5,8 +5,18 @@ macOS, and Windows on amd64 and arm64.
 
 ## Install
 
-Release installation becomes available after the first GitHub release is published.
-No release has been published as part of implementation.
+Install with Go 1.24 or newer:
+
+```sh
+go install github.com/paveforge/ddb/cmd/ddb@latest
+# Or pin a release:
+go install github.com/paveforge/ddb/cmd/ddb@v1.0.0
+```
+
+Add `$(go env GOPATH)/bin` to PATH, or the directory specified by `GOBIN`
+if set. The executable is named `ddb` (`ddb.exe` on Windows).
+
+Alternatively, install a prebuilt release:
 
 Linux/macOS:
 
@@ -183,6 +193,48 @@ indexes affect consumed capacity; monitor the destination and adjust pacing.
 Exports are live scans, not point-in-time snapshots. Imports and truncation are
 not atomic. Quiesce other writers when a stable copy or empty destination is
 required. Checkpoint resume and managed S3 transfers are planned follow-ups.
+
+## Integration test setup with ddbkit
+
+Go projects can use `github.com/paveforge/ddb/ddbkit` to prepare tables and data.
+Use a release containing this package, or the main branch during development:
+
+```sh
+go get github.com/paveforge/ddb@main
+```
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+defer cancel()
+result, err := ddbkit.Load(ctx, client, ddbkit.Options{
+    Table:     "suite-users", // Optional override of the definition's table name.
+    TableFile: "testdata/users.table.json",
+    Input:     "testdata/users.jsonl",
+    Truncate:  true,
+})
+if err != nil {
+    t.Fatalf("prepare test data: %v (progress: %+v)", err, result)
+}
+// Run assertions after Load returns.
+```
+
+Supply your own AWS SDK v2 DynamoDB client, with credentials and endpoint configured.
+`Load` creates a missing table when `TableFile` is supplied and checks existing
+schema compatibility. With only `Table`, the table must already exist. It validates
+all input before mutation, waits for created tables and indexes to become active,
+then waits for truncation and all fixture writes to be acknowledged.
+
+Matching items are replaced by default; unrelated items remain unless `Truncate`
+is true. Truncation preserves the table. Loads are not atomic: errors return partial
+progress and may leave changed data. Unconfirmed writes are saved to
+`Input + ".recovery.jsonl"` on write failure; set `Recovery` to choose another new
+file path. Callers own table cleanup. Use separate table names for parallel suites
+and stop concurrent writers during setup. Base-table assertions should use strongly
+consistent reads; secondary index assertions may need bounded polling.
+
+Formats and compression match the CLI. Zero-valued tuning fields use defaults:
+4 workers, 8 retry attempts, a 2-minute retry budget per request/batch, and a
+5-minute creation wait. Use a context deadline to bound the entire setup.
 
 ## Development
 

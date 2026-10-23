@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"github.com/paveforge/ddb/internal/report"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -65,5 +66,20 @@ func TestEnvFileFlagAndErrors(t *testing.T) {
 				t.Fatalf("invalid conflict: %v", err)
 			}
 		})
+	}
+}
+
+func TestBuildMetadata(t *testing.T) {
+	info := &debug.BuildInfo{Main: debug.Module{Version: "v1.2.3"}, Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "abc"}, {Key: "vcs.time", Value: "today"}}}
+	v, c, d := buildMetadata(info)
+	if v != "v1.2.3" || c != "abc" || d != "today" {
+		t.Fatalf("%s %s %s", v, c, d)
+	}
+	oldV, oldC, oldD := Version, Commit, Date
+	t.Cleanup(func() { Version, Commit, Date = oldV, oldC, oldD })
+	Version, Commit, Date = "release", "injected", "date"
+	v, c, d = buildMetadata(info)
+	if v != "release" || c != "injected" || d != "date" {
+		t.Fatalf("%s %s %s", v, c, d)
 	}
 }

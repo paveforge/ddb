@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/paveforge/ddb/ddbkit"
 	"github.com/paveforge/ddb/internal/report"
 	"github.com/paveforge/ddb/internal/transfer"
 )
@@ -82,4 +83,35 @@ func TestDynamoDBLocal(t *testing.T) {
 	if e != nil || scan.Count != 205 {
 		t.Fatalf("count=%v err=%v", scan, e)
 	}
+	// Exercise the public setup API against an existing populated table.
+	fixture := filepath.Join(dir, "single.jsonl")
+	if err := os.WriteFile(fixture, []byte("{\"Item\":{\"id\":{\"S\":\"fixture\"}}}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	setupCtx, setupCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer setupCancel()
+	for attempt := 0; attempt < 2; attempt++ {
+		result, err := ddbkit.Load(setupCtx, client, ddbkit.Options{Table: name, Input: fixture, Truncate: true})
+		if err != nil {
+			t.Fatalf("ddbkit load: %v (%+v)", err, result)
+		}
+		if result.Confirmed != 1 || !result.TruncateComplete {
+			t.Fatal(result)
+		}
+		if attempt == 0 && result.Deleted != 205 {
+			t.Fatal(result)
+		}
+	}
+	scan, e = client.Scan(ctx, &dynamodb.ScanInput{TableName: aws.String(name), Select: types.SelectCount, ConsistentRead: aws.Bool(true)})
+	if e != nil || scan.Count != 1 {
+		t.Fatalf("ddbkit count=%v err=%v", scan, e)
+	}
+
+	isolated := name + "-kit"
+	t.Cleanup(func() { client.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(isolated)}) })
+	result, err := ddbkit.Load(setupCtx, client, ddbkit.Options{Table: isolated, TableFile: definition, Input: fixture, Truncate: true})
+	if err != nil || !result.Created || result.Table != isolated || result.Confirmed != 1 {
+		t.Fatalf("ddbkit creation result=%+v err=%v", result, err)
+	}
+
 }

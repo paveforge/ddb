@@ -5,6 +5,7 @@ import (
 	"github.com/paveforge/ddb/internal/report"
 	"github.com/spf13/cobra"
 	"io"
+	"runtime/debug"
 )
 
 var Version = "dev"
@@ -18,7 +19,27 @@ func New(out, errOut io.Writer) *cobra.Command {
 	root.SetErr(errOut)
 	root.AddCommand(exportCommand(), importCommand())
 	root.AddCommand(&cobra.Command{Use: "version", Short: "Show build version", Args: cobra.NoArgs, Run: func(c *cobra.Command, _ []string) {
-		fmt.Fprintf(c.OutOrStdout(), "ddb %s (commit %s, built %s)\n", Version, Commit, Date)
+		version, commit, date := Version, Commit, Date
+		if info, ok := debug.ReadBuildInfo(); ok {
+			version, commit, date = buildMetadata(info)
+		}
+		fmt.Fprintf(c.OutOrStdout(), "ddb %s (commit %s, built %s)\n", version, commit, date)
 	}})
 	return root
+}
+
+func buildMetadata(info *debug.BuildInfo) (string, string, string) {
+	version, commit, date := Version, Commit, Date
+	if version == "dev" && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		version = info.Main.Version
+	}
+	for _, setting := range info.Settings {
+		if commit == "unknown" && setting.Key == "vcs.revision" {
+			commit = setting.Value
+		}
+		if date == "unknown" && setting.Key == "vcs.time" {
+			date = setting.Value
+		}
+	}
+	return version, commit, date
 }

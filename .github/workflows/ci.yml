@@ -17,10 +17,16 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build ./cmd/ddb
+      - name: Verify Go installation
+        shell: bash
+        run: |
+          export GOBIN="$RUNNER_TEMP/ddb-install"
+          go install ./cmd/ddb
+          "$GOBIN/ddb" version
       - name: Check Go formatting
         shell: bash
         run: |
-          unformatted=$(gofmt -l cmd internal integration scripts)
+          unformatted=$(gofmt -l cmd internal integration scripts ddbkit)
           if [ -n "$unformatted" ]; then
             printf 'Run gofmt on these files:\n%s\n' "$unformatted"
             exit 1
