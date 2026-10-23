@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/paveforge/go-ddb-cli/internal/cli"
-	"github.com/paveforge/go-ddb-cli/internal/report"
+	"github.com/paveforge/ddb/internal/cli"
+	"github.com/paveforge/ddb/internal/report"
 	"os"
 	"os/signal"
 	"syscall"

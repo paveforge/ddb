@@ -12,9 +12,9 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X github.com/paveforge/go-ddb-cli/internal/cli.Version={{.Version}}
-        -X github.com/paveforge/go-ddb-cli/internal/cli.Commit={{.Commit}}
-        -X github.com/paveforge/go-ddb-cli/internal/cli.Date={{.Date}}
+        -X github.com/paveforge/ddb/internal/cli.Version={{.Version}}
+        -X github.com/paveforge/ddb/internal/cli.Commit={{.Commit}}
+        -X github.com/paveforge/ddb/internal/cli.Date={{.Date}}
 archives:
   - id: default
     formats: [tar.gz]
@@ -30,4 +30,4 @@ changelog:
 release:
   github:
     owner: paveforge
-    name: go-ddb-cli
+    name: ddb

@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/paveforge/go-ddb-cli/internal/awsconfig"
-	"github.com/paveforge/go-ddb-cli/internal/report"
-	"github.com/paveforge/go-ddb-cli/internal/transfer"
+	"github.com/paveforge/ddb/internal/awsconfig"
+	"github.com/paveforge/ddb/internal/report"
+	"github.com/paveforge/ddb/internal/transfer"
 	"github.com/spf13/cobra"
 )
 

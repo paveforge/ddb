@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"github.com/paveforge/go-ddb-cli/internal/report"
+	"github.com/paveforge/ddb/internal/report"
 	"github.com/spf13/cobra"
 	"io"
 )

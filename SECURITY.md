@@ -2,7 +2,7 @@
 
 Do not include credentials or application data in public issues. Report security
 vulnerabilities using GitHub private vulnerability reporting when available:
-https://github.com/paveforge/go-ddb-cli/security/advisories/new
+https://github.com/paveforge/ddb/security/advisories/new
 
 If private reporting is unavailable, contact the repository owner through their
 published contact channel. Avoid publishing exploit details until coordinated.

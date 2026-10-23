@@ -12,8 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/paveforge/go-ddb-cli/internal/report"
-	"github.com/paveforge/go-ddb-cli/internal/transfer"
+	"github.com/paveforge/ddb/internal/report"
+	"github.com/paveforge/ddb/internal/transfer"
 )
 
 func TestDynamoDBLocal(t *testing.T) {

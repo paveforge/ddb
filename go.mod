@@ -1,4 +1,4 @@
-module github.com/paveforge/go-ddb-cli
+module github.com/paveforge/ddb
 
 go 1.24.0
 

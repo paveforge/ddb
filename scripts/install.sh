@@ -5,8 +5,8 @@ set -eu
 # DDB_RELEASE_BASE_URL and DDB_LATEST_API support mirrors and fixture tests.
 version=${1:-latest}
 install_dir=${2:-${DDB_INSTALL_DIR:-"$HOME/.local/bin"}}
-release_base=${DDB_RELEASE_BASE_URL:-https://github.com/paveforge/go-ddb-cli/releases/download}
-latest_api=${DDB_LATEST_API:-https://api.github.com/repos/paveforge/go-ddb-cli/releases/latest}
+release_base=${DDB_RELEASE_BASE_URL:-https://github.com/paveforge/ddb/releases/download}
+latest_api=${DDB_LATEST_API:-https://api.github.com/repos/paveforge/ddb/releases/latest}
 fail() { printf '%s\n' "Error: $*" >&2; exit 1; }
 fetch() {
   if command -v curl >/dev/null 2>&1; then curl -fLsS "$1" -o "$2"

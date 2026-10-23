@@ -9,8 +9,8 @@ $arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitect
     'Arm64' { 'arm64' }
     default { throw 'Unsupported architecture' }
 }
-$base = if ($env:DDB_RELEASE_BASE_URL) { $env:DDB_RELEASE_BASE_URL } else { 'https://github.com/paveforge/go-ddb-cli/releases/download' }
-$latest = if ($env:DDB_LATEST_API) { $env:DDB_LATEST_API } else { 'https://api.github.com/repos/paveforge/go-ddb-cli/releases/latest' }
+$base = if ($env:DDB_RELEASE_BASE_URL) { $env:DDB_RELEASE_BASE_URL } else { 'https://github.com/paveforge/ddb/releases/download' }
+$latest = if ($env:DDB_LATEST_API) { $env:DDB_LATEST_API } else { 'https://api.github.com/repos/paveforge/ddb/releases/latest' }
 if ($Version -eq 'latest') { $Version = (Invoke-RestMethod -Uri $latest).tag_name }
 if (-not $Version.StartsWith('v')) { $Version = "v$Version" }
 if ($Version -notmatch '^v\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$') { throw 'Invalid version (expected vX.Y.Z)' }

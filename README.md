@@ -11,19 +11,19 @@ No release has been published as part of implementation.
 Linux/macOS:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/paveforge/go-ddb-cli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/paveforge/ddb/main/scripts/install.sh | sh
 ```
 
 Or with wget:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/paveforge/go-ddb-cli/main/scripts/install.sh | sh
+wget -qO- https://raw.githubusercontent.com/paveforge/ddb/main/scripts/install.sh | sh
 ```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/paveforge/go-ddb-cli/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/paveforge/ddb/main/scripts/install.ps1 | iex
 ```
 
 Installers detect the architecture, verify the release SHA-256 checksum, and

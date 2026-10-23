@@ -2,7 +2,7 @@ package cli
 
 import (
 	"bytes"
-	"github.com/paveforge/go-ddb-cli/internal/report"
+	"github.com/paveforge/ddb/internal/report"
 	"strings"
 	"testing"
 )
